@@ -14,7 +14,7 @@ public class CannulaMovement : MonoBehaviour
     private float m_Speed           = 2.0f;              //Sets the speed in which the knot pusher moves.
     private float _nextPosition     = 0.0f;              //Gets the analog value from Arduino.
     List<float> savedAnalogData     = new List<float>(); // List where valid Analog Data being saved. 
-    private int _nextSuggestedValue = 1;                 //This value is used in case ES return "n" to the suggested value. 
+    private int _nextSuggestedValue = 0;                 //This value is used in case ES return "n" to the suggested value. 
     private float _suggestedDataValue;                   //When request rollback is ON, this variable gets sent to ES as a suggested point to rollback to.
     private bool is_FaultInjected   = false;             //Checks if a fault has been detected.
     private float randomFaultNumber;                     //Used to generate a random number to mess with the position. (gets called in FaultInjection)
@@ -44,7 +44,7 @@ public class CannulaMovement : MonoBehaviour
                               checks if there is no fault detected
                               Let ES know that Checkpointing has started
                               Saves analog data in savedAnalogData list
-                              Let ED know that Checkpointing has ended.  
+                              Let ES know that Checkpointing has ended.  
     */
     void saveAnalogPosition()
     {
@@ -96,7 +96,7 @@ public class CannulaMovement : MonoBehaviour
         switch (dataString)
         {
             case "@":
-                Debug.Log("ES requests Checkpoiting routine");
+                Debug.Log("ES starts Checkpoiting routine");
                 break;
             case "!":
                 Debug.Log("ES finishes Checkpoiting routine");
@@ -105,12 +105,13 @@ public class CannulaMovement : MonoBehaviour
                 Debug.Log("ES requests Rollback");
                 break;
             case "?":
-                Debug.Log("ES finish Rollback");
+                Debug.Log("ES finished Rollback");
                 break;
             case "y":                                                                               //ES aggrees about the suggested back up data point
                 recoveryFunction();
                 break;
             case "n":                                                                               //ES disagrees about the suggested back up data point
+                _nextSuggestedValue++;
                 _suggestedDataValue = savedAnalogData[savedAnalogData.Count - _nextSuggestedValue]; // Set new data point
                 string suggestedDataSent = _suggestedDataValue.ToString();                          //Convert new data point to string before sending to ES.
                 WriteToArduino(suggestedDataSent);                                                  //New data point sent to ES
