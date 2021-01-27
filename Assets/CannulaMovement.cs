@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.IO.Ports;
 using Random = UnityEngine.Random;
+using System.Linq;
 
 [AddComponentMenu("Vircast/Arduino/Cannula Movement Example")]
 public class CannulaMovement : MonoBehaviour
@@ -28,7 +29,9 @@ public class CannulaMovement : MonoBehaviour
     bool readyToRead = true;
     float lastVal = 0;
     float temp = 0;
-    bool readNegotation = false;
+    bool readNegotation;
+    float alternativePointToSend;
+    bool arduinoRequest = false;
     bool noFromArduinoFlag = false;
 
 
@@ -99,24 +102,26 @@ public class CannulaMovement : MonoBehaviour
         string alternativePoint = dataString; 
         if(noFromArduinoFlag == true)
         {
-            /*
-            Debug.Log("alternativePoint = >" + alternativePoint);
-            dataString = _suggestedDataValue.ToString();
-            noFromArduinoFlag = false;
-            Vector3 temp2 = knotPusher.transform.position;
-            temp2 = new Vector3(0f, knotPusher.transform.position.y, -15.90f);
-            //temp2 = new Vector3(2f, 0f, 0f);
-            knotPusher.transform.position = temp2;
-            //recoveryFunction();
-            Debug.Log("RECOVERY SUCCESS after a No");
-            readyToRead = true;
-            WriteToArduino("q");
-            */
             dataString = "Y";
             noFromArduinoFlag = false;
             Debug.Log("RECOVERY SUCCESS after a No");
             readyToRead = true;
             WriteToArduino("Y");
+        }
+
+        if(arduinoRequest == true)
+        {
+            float suggestedDataFromArduino = 0f;
+            float.TryParse(dataString, out suggestedDataFromArduino);
+            if(savedAnalogData.IndexOf(suggestedDataFromArduino) != -1)
+            {
+                WriteToArduino("Y");
+            }
+            else
+            {
+                alternativePointToSend = savedAnalogData.Aggregate((x, y) => Math.Abs(x - suggestedDataFromArduino) < Math.Abs(y - suggestedDataFromArduino) ? x : y);
+                WriteToArduino(alternativePointToSend.ToString());
+            }
         }
 
 
@@ -132,6 +137,7 @@ public class CannulaMovement : MonoBehaviour
             case "?":
                 //Debug.Log("ES requests Rollback");
                 //readyToRead = false;
+                arduinoRequest = true;
                 break;
             case "*":
                 //Debug.Log("ES finished Rollback");
