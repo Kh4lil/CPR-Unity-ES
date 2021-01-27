@@ -29,6 +29,7 @@ public class CannulaMovement : MonoBehaviour
     float lastVal = 0;
     float temp = 0;
     bool readNegotation = false;
+    bool noFromArduinoFlag = false;
 
 
     /* \\\ Methods:  */
@@ -94,25 +95,48 @@ public class CannulaMovement : MonoBehaviour
     void ReadSerial()
     {
         dataString = stream.ReadLine(); //Reads value as a string from ES
+        Debug.Log("dataString = >" + dataString);
+        string alternativePoint = dataString; 
+        if(noFromArduinoFlag == true)
+        {
+            /*
+            Debug.Log("alternativePoint = >" + alternativePoint);
+            dataString = _suggestedDataValue.ToString();
+            noFromArduinoFlag = false;
+            Vector3 temp2 = knotPusher.transform.position;
+            temp2 = new Vector3(0f, knotPusher.transform.position.y, -15.90f);
+            //temp2 = new Vector3(2f, 0f, 0f);
+            knotPusher.transform.position = temp2;
+            //recoveryFunction();
+            Debug.Log("RECOVERY SUCCESS after a No");
+            readyToRead = true;
+            WriteToArduino("q");
+            */
+            dataString = "Y";
+            noFromArduinoFlag = false;
+            Debug.Log("RECOVERY SUCCESS after a No");
+            readyToRead = true;
+            WriteToArduino("Y");
+        }
 
 
         //Debug.Log("Arduino data: " + dataString);
         switch (dataString)
         {
             case "@":
-                Debug.Log("ES starts Checkpoiting routine");
+                //Debug.Log("ES starts Checkpoiting routine");
                 break;
             case "!":
-                Debug.Log("ES finishes Checkpoiting routine");
+                //Debug.Log("ES finishes Checkpoiting routine");
                 break;
             case "?":
-                Debug.Log("ES requests Rollback");
+                //Debug.Log("ES requests Rollback");
                 //readyToRead = false;
                 break;
             case "*":
-                Debug.Log("ES finished Rollback");
+                //Debug.Log("ES finished Rollback");
                 break;
-            case "y":
+            case "Y":
                 readyToRead = false;
                 //recoveryFunction();
                 Vector3 temp2 = knotPusher.transform.position;
@@ -122,18 +146,23 @@ public class CannulaMovement : MonoBehaviour
                 //recoveryFunction();
                 Debug.Log("RECOVERY SUCCESS");
                 readyToRead = true;
-                WriteToArduino("q");                                                                                                     //return the suggestedDataValue in case we need to use it. (if ES aggrees).
+                WriteToArduino("Y");                                                                                                     //return the suggestedDataValue in case we need to use it. (if ES aggrees).
                 break;
-            case "n":                                                                               //ES disagrees about the suggested back up data point
-                //_nextSuggestedValue++;
-                //_suggestedDataValue = savedAnalogData[savedAnalogData.Count - _nextSuggestedValue]; // Set new data point
-                //string suggestedDataSent = _suggestedDataValue.ToString();                          //Convert new data point to string before sending to ES.
-                //Debug.Log("suggestedDataSent = " + suggestedDataSent);
-                //WriteToArduino(suggestedDataSent);                                                  //New data point sent to ES
-                _nextSuggestedValue++;
+            case "N":                                                                               //ES disagrees about the suggested back up data point
+                readyToRead = false;
+                //recoveryFunction();
+                Vector3 temp3 = knotPusher.transform.position;
+                temp3 = new Vector3(0f, knotPusher.transform.position.y, -15.90f);
+                //temp2 = new Vector3(2f, 0f, 0f);
+                knotPusher.transform.position = temp3;
+                //recoveryFunction();
+                Debug.Log("RECOVERY SUCCESS after NO");
+                readyToRead = true;
+                WriteToArduino("Y");
                 break;
         }
         movementFunction(dataString);
+
     }
 
     /* requestRollback() -> Requests rollback from ES by sending a suggested data point.
@@ -177,6 +206,7 @@ public class CannulaMovement : MonoBehaviour
     {
         lastVal = _nextPosition;                                                       //Compares last value received with the next value received to check if there is any change.
         float.TryParse(dataString, out _nextPosition);                                       //Converts data received to float. 
+        //Debug.Log("_nextPosition = > " + _nextPosition);
 
         if(is_FaultInjected == true)
         {
@@ -209,8 +239,14 @@ public class CannulaMovement : MonoBehaviour
 
     private float negotiate()
     {
+        //foreach(int i in savedAnalogData)
+        //{
+        //  Debug.Log("savedAnalogData = >>>> " + i);
+        //}
+        //Debug.Log("savedAnalogData[savedAnalogData.Count - _nextSuggestedValue] " + savedAnalogData[savedAnalogData.Count - _nextSuggestedValue]);
         _suggestedDataValue = savedAnalogData[savedAnalogData.Count - _nextSuggestedValue]; //Sets the suggested backup point to the last valid saved point.
         //string suggestedDataSent = _suggestedDataValue.ToString();             //Converts the suggested point to string before sending to ES.
+        Debug.Log("HEEEERE, SENDING DATA TO ARDUINO: " + _suggestedDataValue.ToString());
         WriteToArduino(_suggestedDataValue.ToString());                                     //Send suggested point to ES as string
         //string negotiationListener = stream.ReadLine();                        //Reads value as a string from ES
         readNegotation = true;
