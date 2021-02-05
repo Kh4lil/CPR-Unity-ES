@@ -16,7 +16,9 @@ public class CannulaMovement : MonoBehaviour
 
     private float m_Speed           = 2.0f;              //Sets the speed in which the knot pusher moves.
     private float _nextPosition     = 0.0f;              //Gets the analog value from Arduino.
+    private string _nextTimeStamp = "";
     List<float> savedAnalogData     = new List<float>(); // List where valid Analog Data being saved. 
+    List<string> savedTimeStampData = new List<string>();
     private int _nextSuggestedValue = 1;                 //This value is used in case ES return "n" to the suggested value. 
     private float _suggestedDataValue;                   //When request rollback is ON, this variable gets sent to ES as a suggested point to rollback to.
     private bool is_FaultInjected   = false;             //Checks if a fault has been detected.
@@ -63,6 +65,7 @@ public class CannulaMovement : MonoBehaviour
         {
             WriteToArduino("s"); 
             savedAnalogData.Add(_nextPosition);
+            savedTimeStampData.Add(_nextTimeStamp);
             WriteToArduino("f");
         }
     }
@@ -74,6 +77,7 @@ public class CannulaMovement : MonoBehaviour
     */
     void Update()
     {
+        Debug.Log("savedTimeStampList Length = " + savedTimeStampData.Count);
         //Debug.Log(System.DateTime.Now.ToString());
         if (Input.GetKeyDown(KeyCode.R)){
             faultInjectionFunction();
@@ -225,11 +229,15 @@ public class CannulaMovement : MonoBehaviour
 
     void movementFunction(string dataString)
     {
+        string[] tmp = dataString.Split('-');
+
         lastVal = _nextPosition;                                                       //Compares last value received with the next value received to check if there is any change.
-        float.TryParse(dataString, out _nextPosition);                                       //Converts data received to float. 
+        //float.TryParse(dataString, out _nextPosition);                                       //Converts data received to float. 
+        float.TryParse(tmp[0], out _nextPosition);
+        _nextTimeStamp = tmp[1];
         //Debug.Log("_nextPosition = > " + _nextPosition);
 
-        if(is_FaultInjected == true)
+        if (is_FaultInjected == true)
         {
             knotPusher.transform.position += 20 * transform.right * Time.deltaTime * m_Speed; //Move knotpusher to the right
             is_FaultInjected = false;
