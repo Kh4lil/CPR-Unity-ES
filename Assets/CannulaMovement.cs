@@ -12,6 +12,8 @@ public class CannulaMovement : MonoBehaviour
     /* \\\ Variable declarations:  */
     public GameObject knotPusher;                        //This is the knot pusher visualization example that will be moving. 
 
+
+
     private float m_Speed           = 2.0f;              //Sets the speed in which the knot pusher moves.
     private float _nextPosition     = 0.0f;              //Gets the analog value from Arduino.
     List<float> savedAnalogData     = new List<float>(); // List where valid Analog Data being saved. 
@@ -45,7 +47,6 @@ public class CannulaMovement : MonoBehaviour
         stream             = new SerialPort(portName, baudRate);
         stream.Open();
         stream.ReadTimeout = 1000;
-
         m_Speed            = 2.0f;                     //Set the speed of the GameObject
         InvokeRepeating("saveAnalogPosition", 1f, 1f); //Call the function saveAnalogPosition() every 1 second.
     }
@@ -73,6 +74,7 @@ public class CannulaMovement : MonoBehaviour
     */
     void Update()
     {
+        //Debug.Log(System.DateTime.Now.ToString());
         if (Input.GetKeyDown(KeyCode.R)){
             faultInjectionFunction();
         }
@@ -97,6 +99,7 @@ public class CannulaMovement : MonoBehaviour
      */
     void ReadSerial()
     {
+
         dataString = stream.ReadLine(); //Reads value as a string from ES
         Debug.Log("dataString = >" + dataString);
         string alternativePoint = dataString; 
@@ -107,21 +110,6 @@ public class CannulaMovement : MonoBehaviour
             Debug.Log("RECOVERY SUCCESS after a No");
             readyToRead = true;
             WriteToArduino("Y");
-        }
-
-        if(arduinoRequest == true)
-        {
-            float suggestedDataFromArduino = 0f;
-            float.TryParse(dataString, out suggestedDataFromArduino);
-            if(savedAnalogData.IndexOf(suggestedDataFromArduino) != -1)
-            {
-                WriteToArduino("Y");
-            }
-            else
-            {
-                alternativePointToSend = savedAnalogData.Aggregate((x, y) => Math.Abs(x - suggestedDataFromArduino) < Math.Abs(y - suggestedDataFromArduino) ? x : y);
-                WriteToArduino(alternativePointToSend.ToString());
-            }
         }
 
 
@@ -138,6 +126,26 @@ public class CannulaMovement : MonoBehaviour
                 //Debug.Log("ES requests Rollback");
                 //readyToRead = false;
                 arduinoRequest = true;
+                if (arduinoRequest == true)
+                {
+                    float suggestedDataFromArduino = 0f;
+                    float.TryParse(dataString, out suggestedDataFromArduino);
+                    //WriteToArduino("Y");
+                    //arduinoRequest = false;
+                    if (savedAnalogData.IndexOf(suggestedDataFromArduino) != -1)
+                    {
+                        WriteToArduino("Y");
+                        arduinoRequest = false;
+                    }
+                    else
+                    {
+                        Debug.Log("Data cannot be found");
+                        alternativePointToSend = savedAnalogData.Aggregate((x, y) => Math.Abs(x - suggestedDataFromArduino) < Math.Abs(y - suggestedDataFromArduino) ? x : y);
+                        WriteToArduino(alternativePointToSend.ToString());
+                        WriteToArduino("N");
+                        arduinoRequest = true;
+                    }
+                }
                 break;
             case "*":
                 //Debug.Log("ES finished Rollback");
@@ -150,6 +158,7 @@ public class CannulaMovement : MonoBehaviour
                 //temp2 = new Vector3(2f, 0f, 0f);
                 knotPusher.transform.position = temp2;
                 //recoveryFunction();
+
                 Debug.Log("RECOVERY SUCCESS");
                 readyToRead = true;
                 WriteToArduino("Y");                                                                                                     //return the suggestedDataValue in case we need to use it. (if ES aggrees).
@@ -162,6 +171,12 @@ public class CannulaMovement : MonoBehaviour
                 //temp2 = new Vector3(2f, 0f, 0f);
                 knotPusher.transform.position = temp3;
                 //recoveryFunction();
+                //Get the Renderer component from the new cube
+                //var sphereRenderer = sphere.GetComponent<Renderer>();
+
+                //Call SetColor using the shader property name "_Color" and setting the color to red
+                //sphereRenderer.material.SetColor("_BaseColor", Color.green);
+
                 Debug.Log("RECOVERY SUCCESS after NO");
                 readyToRead = true;
                 WriteToArduino("Y");
@@ -235,6 +250,7 @@ public class CannulaMovement : MonoBehaviour
 
     private void faultInjectionFunction()
     {
+
         is_FaultInjected = true;
         readyToRead = false;
         randomFaultNumber = Random.Range(1, 1000); //Generate a random number from 1 - 1000
