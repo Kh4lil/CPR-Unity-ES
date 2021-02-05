@@ -21,6 +21,7 @@ public class CannulaMovement : MonoBehaviour
     List<string> savedTimeStampData = new List<string>();
     private int _nextSuggestedValue = 1;                 //This value is used in case ES return "n" to the suggested value. 
     private float _suggestedDataValue;                   //When request rollback is ON, this variable gets sent to ES as a suggested point to rollback to.
+    private string _suggestedTimeStamp;
     private bool is_FaultInjected   = false;             //Checks if a fault has been detected.
     private float randomFaultNumber;                     //Used to generate a random number to mess with the position. (gets called in FaultInjection)
 
@@ -77,7 +78,7 @@ public class CannulaMovement : MonoBehaviour
     */
     void Update()
     {
-        Debug.Log("savedTimeStampList Length = " + savedTimeStampData.Count);
+        //Debug.Log("savedTimeStampList Length = " + savedTimeStampData.Count);
         //Debug.Log(System.DateTime.Now.ToString());
         if (Input.GetKeyDown(KeyCode.R)){
             faultInjectionFunction();
@@ -229,12 +230,20 @@ public class CannulaMovement : MonoBehaviour
 
     void movementFunction(string dataString)
     {
-        string[] tmp = dataString.Split('-');
-
-        lastVal = _nextPosition;                                                       //Compares last value received with the next value received to check if there is any change.
+        if (dataString.Contains("-"))
+        {
+            string[] tmp = dataString.Split('-');
+            lastVal = _nextPosition;
+            float.TryParse(tmp[0], out _nextPosition);
+            _nextTimeStamp = tmp[1];
+        }
+        //lastVal = _nextPosition;                                                       //Compares last value received with the next value received to check if there is any change.
+        else
+        {
+            float.TryParse(dataString, out _nextPosition);
+        }
         //float.TryParse(dataString, out _nextPosition);                                       //Converts data received to float. 
-        float.TryParse(tmp[0], out _nextPosition);
-        _nextTimeStamp = tmp[1];
+
         //Debug.Log("_nextPosition = > " + _nextPosition);
 
         if (is_FaultInjected == true)
@@ -275,8 +284,10 @@ public class CannulaMovement : MonoBehaviour
         //}
         //Debug.Log("savedAnalogData[savedAnalogData.Count - _nextSuggestedValue] " + savedAnalogData[savedAnalogData.Count - _nextSuggestedValue]);
         _suggestedDataValue = savedAnalogData[savedAnalogData.Count - _nextSuggestedValue]; //Sets the suggested backup point to the last valid saved point.
-        //string suggestedDataSent = _suggestedDataValue.ToString();             //Converts the suggested point to string before sending to ES.
-        Debug.Log("HEEEERE, SENDING DATA TO ARDUINO: " + _suggestedDataValue.ToString());
+        //Use timestamps
+        //_suggestedTimeStamp = savedTimeStampData[savedTimeStampData.Count - 1];
+        string suggestedDataSent = _suggestedDataValue.ToString();             //Converts the suggested point to string before sending to ES.
+        //Debug.Log("HEEEERE, SENDING DATA TO ARDUINO: " + _suggestedTimeStamp);
         WriteToArduino(_suggestedDataValue.ToString());                                     //Send suggested point to ES as string
         //string negotiationListener = stream.ReadLine();                        //Reads value as a string from ES
         readNegotation = true;
