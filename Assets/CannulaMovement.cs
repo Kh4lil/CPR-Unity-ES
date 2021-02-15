@@ -117,26 +117,18 @@ public class CannulaMovement : MonoBehaviour
             WriteToArduino("Y");
         }
 
-
-        //Debug.Log("Arduino data: " + dataString);
         switch (dataString)
         {
             case "@":
-                //Debug.Log("ES starts Checkpoiting routine");
                 break;
             case "!":
-                //Debug.Log("ES finishes Checkpoiting routine");
                 break;
             case "?":
-                //Debug.Log("ES requests Rollback");
-                //readyToRead = false;
                 arduinoRequest = true;
                 if (arduinoRequest == true)
                 {
                     float suggestedDataFromArduino = 0f;
                     float.TryParse(dataString, out suggestedDataFromArduino);
-                    //WriteToArduino("Y");
-                    //arduinoRequest = false;
                     if (savedAnalogData.IndexOf(suggestedDataFromArduino) != -1)
                     {
                         WriteToArduino("Y");
@@ -153,34 +145,22 @@ public class CannulaMovement : MonoBehaviour
                 }
                 break;
             case "*":
-                //Debug.Log("ES finished Rollback");
                 break;
             case "Y":
                 readyToRead = false;
-                //recoveryFunction();
                 Vector3 temp2 = knotPusher.transform.position;
                 temp2 = new Vector3(0f, knotPusher.transform.position.y, -15.90f);
-                //temp2 = new Vector3(2f, 0f, 0f);
                 knotPusher.transform.position = temp2;
-                //recoveryFunction();
 
                 Debug.Log("RECOVERY SUCCESS");
                 readyToRead = true;
-                WriteToArduino("Y");                                                                                                     //return the suggestedDataValue in case we need to use it. (if ES aggrees).
+                WriteToArduino("Y");                     
                 break;
-            case "N":                                                                               //ES disagrees about the suggested back up data point
+            case "N":                                                                             
                 readyToRead = false;
-                //recoveryFunction();
                 Vector3 temp3 = knotPusher.transform.position;
                 temp3 = new Vector3(0f, knotPusher.transform.position.y, -15.90f);
-                //temp2 = new Vector3(2f, 0f, 0f);
                 knotPusher.transform.position = temp3;
-                //recoveryFunction();
-                //Get the Renderer component from the new cube
-                //var sphereRenderer = sphere.GetComponent<Renderer>();
-
-                //Call SetColor using the shader property name "_Color" and setting the color to red
-                //sphereRenderer.material.SetColor("_BaseColor", Color.green);
 
                 Debug.Log("RECOVERY SUCCESS after NO");
                 readyToRead = true;
@@ -197,9 +177,7 @@ public class CannulaMovement : MonoBehaviour
      */
     private void requestRollback()
     {
-        //readyToRead = true;
         WriteToArduino("r");                                                   //Send 'r' to ES
-        //sendRequest = false;
         negotiate();
     }
 
@@ -210,13 +188,10 @@ public class CannulaMovement : MonoBehaviour
     void recoveryFunction()
     {
         dataString = _suggestedDataValue.ToString();            //sets position to the backedup value.
-        //movementFunction(dataString);
 
         //Sends 'q' to ES to declare recovery ended.
         readyToRead = true;
         lastVal = 0;
-        
-        //return dataString;
     }
 
     /*WriteToArduino(string) -> Handles the sending data from Unity to ES.
