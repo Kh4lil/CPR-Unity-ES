@@ -78,8 +78,6 @@ public class CannulaMovement : MonoBehaviour
     */
     void Update()
     {
-        //Debug.Log("savedTimeStampList Length = " + savedTimeStampData.Count);
-        //Debug.Log(System.DateTime.Now.ToString());
         if (Input.GetKeyDown(KeyCode.R)){
             faultInjectionFunction();
         }
@@ -95,7 +93,6 @@ public class CannulaMovement : MonoBehaviour
                 Debug.LogWarning("Serial Failed");
             }
         }
-        //Debug.Log(String.Join(", ", savedAnalogData)); //Output all the savedData so far. 
     }
 
     /* ReadSerial() -> Reads data from ES. 
@@ -106,15 +103,33 @@ public class CannulaMovement : MonoBehaviour
     {
 
         dataString = stream.ReadLine(); //Reads value as a string from ES
-        Debug.Log("dataString = >" + dataString);
+        Debug.Log("dataString => " + dataString);
         string alternativePoint = dataString; 
         if(noFromArduinoFlag == true)
         {
-            dataString = "Y";
-            noFromArduinoFlag = false;
-            Debug.Log("RECOVERY SUCCESS after a No");
-            readyToRead = true;
-            WriteToArduino("Y");
+            //dataString = "Y";
+            Debug.Log("alternativePoint = " + alternativePoint);
+            if (savedTimeStampData.Contains(alternativePoint))
+            {
+                Debug.Log("NEW dataString sent " + dataString + " exist in list");
+                Debug.Log("RECOVERY SUCCESS after a No");
+                readyToRead = true;
+                noFromArduinoFlag = false;
+                WriteToArduino("Y");
+            }
+            else //To be modified
+            {
+                Debug.Log("NEW dataString sent " + dataString + " does not exist in list");
+                readyToRead = true;
+                noFromArduinoFlag = false;
+                WriteToArduino("Y");
+                //readyToRead = true;
+                //readyToRead = false;
+                
+                //negotiate();
+            }
+            
+            
         }
 
         switch (dataString)
@@ -161,10 +176,14 @@ public class CannulaMovement : MonoBehaviour
                 Vector3 temp3 = knotPusher.transform.position;
                 temp3 = new Vector3(0f, knotPusher.transform.position.y, -15.90f);
                 knotPusher.transform.position = temp3;
+                noFromArduinoFlag = true;
+                ReadSerial();
 
-                Debug.Log("RECOVERY SUCCESS after NO");
-                readyToRead = true;
-                WriteToArduino("Y");
+
+
+                //Debug.Log("RECOVERY SUCCESS after NO");
+                //readyToRead = true;
+                //WriteToArduino("Y");
                 break;
         }
         movementFunction(dataString);
@@ -217,9 +236,7 @@ public class CannulaMovement : MonoBehaviour
         {
             float.TryParse(dataString, out _nextPosition);
         }
-        //float.TryParse(dataString, out _nextPosition);                                       //Converts data received to float. 
 
-        //Debug.Log("_nextPosition = > " + _nextPosition);
 
         if (is_FaultInjected == true)
         {
@@ -253,17 +270,15 @@ public class CannulaMovement : MonoBehaviour
 
     private float negotiate()
     {
-        //foreach(int i in savedAnalogData)
-        //{
-        //  Debug.Log("savedAnalogData = >>>> " + i);
-        //}
-        //Debug.Log("savedAnalogData[savedAnalogData.Count - _nextSuggestedValue] " + savedAnalogData[savedAnalogData.Count - _nextSuggestedValue]);
+
         _suggestedDataValue = savedAnalogData[savedAnalogData.Count - _nextSuggestedValue]; //Sets the suggested backup point to the last valid saved point.
         //Use timestamps
-        //_suggestedTimeStamp = savedTimeStampData[savedTimeStampData.Count - 1];
+        _suggestedTimeStamp = savedTimeStampData[savedTimeStampData.Count - 1];
+  
         string suggestedDataSent = _suggestedDataValue.ToString();             //Converts the suggested point to string before sending to ES.
-        //Debug.Log("HEEEERE, SENDING DATA TO ARDUINO: " + _suggestedTimeStamp);
-        WriteToArduino(_suggestedDataValue.ToString());                                     //Send suggested point to ES as string
+        //WriteToArduino(_suggestedDataValue.ToString());                                     //Send suggested point to ES as string
+        //_suggestedTimeStamp = "1234";
+        WriteToArduino(_suggestedTimeStamp.ToString());
         //string negotiationListener = stream.ReadLine();                        //Reads value as a string from ES
         readNegotation = true;
         readyToRead = true;
