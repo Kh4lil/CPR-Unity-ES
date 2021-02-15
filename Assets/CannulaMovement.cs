@@ -127,9 +127,27 @@ public class CannulaMovement : MonoBehaviour
                 //readyToRead = false;
                 
                 //negotiate();
+            }       
+        }
+        if (arduinoRequest == true)
+        {
+            string timeStampFromArduino = dataString;
+            Debug.Log("timeStampFromArduino => " + timeStampFromArduino);
+            if (savedTimeStampData.Contains(timeStampFromArduino))
+            {
+                Debug.Log("NEW dataString received " + timeStampFromArduino + " exist in list");
+                Debug.Log("RECOVERY APPROVED, notifying ES.");
+                readyToRead = true;
+                noFromArduinoFlag = false;
+                WriteToArduino("Y");
             }
-            
-            
+            else //to be modified also. 
+            {
+                Debug.Log("Cannot find timestamp, must send new one.");
+                readyToRead = true;
+                noFromArduinoFlag = false;
+                WriteToArduino("Y");
+            }
         }
 
         switch (dataString)
@@ -140,24 +158,7 @@ public class CannulaMovement : MonoBehaviour
                 break;
             case "?":
                 arduinoRequest = true;
-                if (arduinoRequest == true)
-                {
-                    float suggestedDataFromArduino = 0f;
-                    float.TryParse(dataString, out suggestedDataFromArduino);
-                    if (savedAnalogData.IndexOf(suggestedDataFromArduino) != -1)
-                    {
-                        WriteToArduino("Y");
-                        arduinoRequest = false;
-                    }
-                    else
-                    {
-                        Debug.Log("Data cannot be found");
-                        alternativePointToSend = savedAnalogData.Aggregate((x, y) => Math.Abs(x - suggestedDataFromArduino) < Math.Abs(y - suggestedDataFromArduino) ? x : y);
-                        WriteToArduino(alternativePointToSend.ToString());
-                        WriteToArduino("N");
-                        arduinoRequest = true;
-                    }
-                }
+                ReadSerial();
                 break;
             case "*":
                 break;
