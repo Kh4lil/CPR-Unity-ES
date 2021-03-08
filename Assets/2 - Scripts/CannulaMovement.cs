@@ -35,6 +35,8 @@ public class CannulaMovement : MonoBehaviour
     bool arduinoRequest = false;
     bool noFromArduinoFlag = false;
 
+    System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+
 
     /* \\\ Methods:  */
 
@@ -107,7 +109,6 @@ public class CannulaMovement : MonoBehaviour
         if(noFromArduinoFlag == true)
         {
             //dataString = "Y";
-            Debug.Log("alternativePoint = " + alternativePoint);
             if (savedTimeStampData.Contains(alternativePoint))
             {
                 Debug.Log("NEW dataString sent " + dataString + " exist in list");
@@ -171,6 +172,7 @@ public class CannulaMovement : MonoBehaviour
             case "!":
                 break;
             case "?":
+                timer.Start();
                 arduinoRequest = true;
                 ReadSerial();
                 break;
@@ -179,6 +181,8 @@ public class CannulaMovement : MonoBehaviour
                 temp3 = new Vector3(0f, knotPusher.transform.position.y, -15.90f);
                 knotPusher.transform.position = temp3;
                 Debug.Log("RECOVERY DONE, BACK TO NORMAL");
+                timer.Stop();
+                Debug.Log(string.Format("Checkpointing/Recovery took {0} ms to complete", timer.ElapsedMilliseconds));
                 break;
             case "Y":
                 readyToRead = false;
@@ -210,6 +214,7 @@ public class CannulaMovement : MonoBehaviour
      */
     private void requestRollback()
     {
+        timer.Start();
         WriteToArduino("r");                                                   //Send 'r' to ES
         negotiate();
     }
