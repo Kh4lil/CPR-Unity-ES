@@ -183,6 +183,7 @@ public class CannulaMovement : MonoBehaviour
                 Debug.Log("RECOVERY DONE, BACK TO NORMAL");
                 timer.Stop();
                 Debug.Log(string.Format("Checkpointing/Recovery took {0} ms to complete", timer.ElapsedMilliseconds));
+                timer.Reset();
                 break;
             case "Y":
                 readyToRead = false;
