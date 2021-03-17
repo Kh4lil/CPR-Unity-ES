@@ -34,6 +34,8 @@ public class CannulaMovement : MonoBehaviour
     float lastVal = 0;
     bool arduinoRequest = false;
     bool noFromArduinoFlag = false;
+    bool getSampleLoss = false;
+    bool getTimes = false;
 
     System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
 
@@ -105,8 +107,25 @@ public class CannulaMovement : MonoBehaviour
         
         dataString = stream.ReadLine(); //Reads value as a string from ES
         //Debug.Log("dataString => " + dataString);
-        string alternativePoint = dataString; 
-        if(noFromArduinoFlag == true)
+        string alternativePoint = dataString;
+        if (getTimes == true)
+        {
+            timer.Stop();
+            Debug.Log(string.Format("Checkpointing/Recovery took {0} ms to complete", timer.ElapsedMilliseconds));
+            Debug.Log(string.Format("Checkpointing/Recovery took {0} us to complete", timer.ElapsedMilliseconds * 1000));
+            Debug.Log("T1 + T2 (in us) => " + dataString);
+            Debug.Log("T1 (in us) => " + (Int32.Parse(dataString) - (timer.ElapsedMilliseconds * 1000)));
+            timer.Reset();
+            getTimes = false;
+        }
+        if (getSampleLoss == true)
+        {
+            Debug.Log("Samples Lost => " + dataString);
+            getSampleLoss = false;
+            getTimes = true;
+        }
+
+        if (noFromArduinoFlag == true)
         {
             //dataString = "Y";
             if (savedTimeStampData.Contains(alternativePoint))
@@ -181,9 +200,10 @@ public class CannulaMovement : MonoBehaviour
                 temp3 = new Vector3(0f, knotPusher.transform.position.y, -15.90f);
                 knotPusher.transform.position = temp3;
                 Debug.Log("RECOVERY DONE, BACK TO NORMAL");
-                timer.Stop();
-                Debug.Log(string.Format("Checkpointing/Recovery took {0} ms to complete", timer.ElapsedMilliseconds));
-                timer.Reset();
+                //timer.Stop();
+                //Debug.Log(string.Format("Checkpointing/Recovery took {0} ms to complete", timer.ElapsedMilliseconds));
+                //timer.Reset();
+                getSampleLoss = true;
                 break;
             case "Y":
                 readyToRead = false;
