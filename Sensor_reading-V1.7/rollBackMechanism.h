@@ -3,6 +3,28 @@
 
 
 
+//Enable Checkpoints
+#define CHKPT
+
+//Fault Injection Macros
+//#define INSERT_FAULT
+
+//#define ZERO_FAULT
+#define ONES_FAULT
+//#define FLIP_FAULT
+
+#define ADDR_FAULT *address3
+
+#define FLIP_VALUE 0x01
+
+//Sample Counter
+//Shows the Sample Count on the Serial Monitor
+//#define Show_Sample_Count
+#define MAXSampleCount 100
+
+
+
+
 //Funciton Definitions
 
 // Checkpoint stores GP registers, Sensor Value, and Time Stamp into a save slot.
@@ -27,11 +49,11 @@ void sensorDataWrite(int sensorData, unsigned long sensorTimeStamp);
 
 // Determines if a checkpoint with the value 'rbValue' is avaliable.
 // Returns the SAVE INDEX of the value if it is avaliable. -1 otherwise
-int checkpointAvaliable(int rbValue);
+int checkpointAvaliable(long rbValue);
 
 // Negotiate Rollback
 // negotiates with the visualizer 
-void negotiateRollback(int rbValue);
+void negotiateRollback(long rbValue);
 
 
 
@@ -58,10 +80,15 @@ volatile bool rbFlag = false;
 // Used for checkpoint values.
 int currSensorValue = 0;
 unsigned long currSensorTime = 0;
+long currSample = 0;
 
 
 int negotiateValue;
 int restoreIndex = 0;
+
+//Counter to track how many times the sensor is read.
+long sampleCounter = 0;
+
 
 
 
@@ -104,7 +131,8 @@ volatile byte *address31 = 0x1F;
 
 //SAVE SLOTS
 //SAVE_SIZE determines number of backup slots
-const int SAVE_SIZE=10;
+const int SAVE_SIZE=5;
+int saveCount = 0;
 
 //struct to save GPRegs
 struct GPRegBackup{
@@ -149,6 +177,8 @@ struct GPRegBackup regSaves[SAVE_SIZE];
 unsigned long timerBackup[SAVE_SIZE];
 //Store sensor Values
 int sensorBackup[SAVE_SIZE];
+//Store SampleCount Values
+long sampleCountBackup[SAVE_SIZE];
 //Index to access backup slots
 int backupIndex = 0;
 
@@ -180,6 +210,8 @@ void checkpoint() {
   //Backup Timer Value - Used for rollback negotiation
   
   timerBackup[backupIndex] = currSensorTime;
+
+  sampleCountBackup[backupIndex] = sampleCounter;
   
   regSaves[backupIndex].adr00 = *address0;
   regSaves[backupIndex].adr01 = *address1;
@@ -220,7 +252,11 @@ void checkpoint() {
   else{
     backupIndex++;
   }
-  
+
+ 
+  if (saveCount < SAVE_SIZE){
+     saveCount++;
+  }
 
   
   Serial.println("!");
@@ -271,8 +307,11 @@ void recovery() {
   //Restore Sensor Value
   currSensorValue = sensorBackup[backupIndex];
   
-  //Restore Timer Value - Timer may just be used for negotiation. Not needed to restore
+  //Restore Timer Value - Used to determine the time loss for recovery
   currSensorTime = timerBackup[backupIndex];
+
+  //Get the sample of the restore point. Used to determine how many samples were lost.
+  currSample = sampleCountBackup[backupIndex];
 
   //Restore GP Regs
   *address0 = regSaves[backupIndex].adr00;
@@ -313,7 +352,17 @@ void recovery() {
   
   //Serial.print("Recovery done at the time:");
   //Serial.println(micros());
-  //sei();    
+  //sei(); 
+
+
+  //Send Rollback Lost Samples
+  Serial.println(sampleCounter - currSample);
+  //Reassign sampleCount
+  //sampleCounter = currSample; //This causes negative sample values.
+  
+
+  //Send Rollback Lost Time
+  Serial.println(micros() - currSensorTime);
   return;
   }    
 
@@ -326,10 +375,18 @@ void malicious(void){
   //Your code should stand it. 
 
   
-  //R1 to Random
-   badReg =  random(1, 255);
-  *address1= badReg;
 
+  #ifdef ZERO_FAULT
+  ADDR_FAULT = 0x00;
+  #endif
+
+  #ifdef ONES_FAULT
+  ADDR_FAULT = 0xFF;
+  #endif
+
+  #ifdef FLIP_FAULT
+  ADDR_FAULT ^= FLIP_VALUE;
+  #endif
 
 
 
@@ -354,7 +411,7 @@ void sensorDataWrite(int sensorData, unsigned long sensorTimeStamp){
     dataString += String(sensorTimeStamp);
     Serial.println(dataString);
     
-  }
+  } 
   sei();
 }
 
@@ -364,23 +421,43 @@ void sensorDataWrite(int sensorData, unsigned long sensorTimeStamp){
  * 
  */
  
-int checkpointAvaliable(int rbValue){
-  int timestampMargin = 1000;
-  for (int i = 0; i < SAVE_SIZE; i++){
+int checkpointAvaliable(long rbValue){
+
+  // 1 second margin of error
+  // +/- 0.5 seconds.
+
+  // .4 second margin
+  // +/-0.2 max seconds
+  long timestampMargin = 200;
+  long timestampMax = 0;
+  long timestampMin = 0;
+  
+  for (int i = 0; i < saveCount; i++){
+
+
+    //Equality check only
     /*
-    if (sensorBackup[i] == rbValue){
+    if (timerBackup[i] == rbValue){
       return i;
+    }
     */
-    //Check if rbValue timestamp is in 
-    if (timerBackup[i]+timestampMargin >= rbValue && timerBackup[i]-timestampMargin <= rbValue);
+
+    timestampMax = timerBackup[i] + timestampMargin;
+    timestampMin = timerBackup[i] - timestampMargin;
+    
+    
+    //Check if rbValue timestamp is within timerstampMargin of error.
+    
+    if (rbValue <= timestampMax && rbValue >= timestampMin)
       return i;
+
   }
   return -1;
 }
 
 
 //Negotiate Visualizer Starts
-void negotiateRollback(int rbValue){
+void negotiateRollback(long rbValue){
 //Negotiation
     sei();
     boolean rbAgree = false;
@@ -427,7 +504,7 @@ void negotiateRollback(int rbValue){
           response = false;
           while (!response){
             //Serial.print(":[");
-            //delay(500);
+            delay(500);
             rbValue=Serial.parseInt();
             if (rbValue > 0){
               response = true;
@@ -435,7 +512,7 @@ void negotiateRollback(int rbValue){
           }
         }
         suggestIndex++;
-        suggestIndex %= SAVE_SIZE;
+        suggestIndex %= saveCount;
       }
     }
     //memInterface_Restore(suggestIndex);
@@ -444,7 +521,7 @@ void negotiateRollback(int rbValue){
 }
 
 //Negotiate - Arduino starts
-void negotiateRollbackES(int rbValue){
+void negotiateRollbackES(long rbValue){
 //Negotiation
     sei();
     boolean rbAgree = false;
@@ -453,10 +530,11 @@ void negotiateRollbackES(int rbValue){
     Serial.println('?');
     while (!rbAgree){
         //Suggest  rollback value
+        //Serial.println('?');
         //Serial.println(sensorBackup[suggestIndex]); //Use Timer instead. Sends timestamp
         Serial.println(timerBackup[suggestIndex]);
         rbValue=0;
-        //Wait for responsez
+        //Wait for response
         //delay(1000);
         //while(!Serial.available()){};
         bool response = false;
@@ -496,7 +574,7 @@ void negotiateRollbackES(int rbValue){
           }
         }
         suggestIndex++;
-        suggestIndex %= SAVE_SIZE;
+        suggestIndex %= saveCount;
     }
     //memInterface_Restore(suggestIndex);
     //Do Recovery
@@ -512,7 +590,9 @@ void insertFault(){
     chkptFlag=false;
     rbFlag = false;
   }
+  #ifdef INSERT_FAULT
   malicious();
+  #endif
   //begin recovery
   //negotiateRollbackES(0);
 }
@@ -522,7 +602,7 @@ void showBackups(){
   Serial.println("Backups");
   Serial.print("Most Recent Backup: ");
   Serial.println(backupIndex);
-  for(int i = 0; i < SAVE_SIZE; i++){
+  for(int i = 0; i < saveCount; i++){
     Serial.print("Backup:");
     Serial.println(i);
     Serial.print("Sensor Value: ");
@@ -561,5 +641,18 @@ void showBackups(){
     Serial.println(regSaves[i].adr1D);
     Serial.println(regSaves[i].adr1E);
     Serial.println(regSaves[i].adr1F);
+  }
+}
+
+void showTimestampBackups(){
+  Serial.println("TimeStamps Backups");
+  Serial.print("Most Recent Backup: ");
+  Serial.println(backupIndex);
+  for(int i = 0; i < saveCount; i++){
+    Serial.print("Backup:");
+    Serial.println(i);
+    Serial.print("Timer Value: ");
+    Serial.println(timerBackup[i]);
+
   }
 }
